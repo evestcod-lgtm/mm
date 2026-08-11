@@ -26,7 +26,7 @@ jobs:
       - name: Install Android Build Tools
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmdline-tools;latest"
 
       - name: Download Godot
         run: |
@@ -56,31 +56,23 @@ jobs:
       - name: Write Godot Editor Settings
         run: |
           mkdir -p $HOME/.config/godot
-          python3 - << 'PYEOF'
-          import os
-          sdk  = os.environ.get("ANDROID_SDK_ROOT", "")
-          java = os.environ.get("JAVA_HOME", "")
-          home = os.path.expanduser("~")
-          ks   = home + "/debug.keystore"
-          content = (
-              '[gd_resource type="EditorSettings" format=3]\n\n'
-              '[resource]\n'
-              'export/android/android_sdk_path = "{}"\n'
-              'export/android/java_sdk_path = "{}"\n'
-              'export/android/debug_keystore = "{}"\n'
-              'export/android/debug_keystore_user = "androiddebugkey"\n'
-              'export/android/debug_keystore_pass = "android"\n'
-          ).format(sdk, java, ks)
-          path = home + "/.config/godot/editor_settings-4.tres"
-          open(path, "w").write(content)
-          print("wrote:", path)
-          print(content)
-          PYEOF
+          KS="$HOME/debug.keystore"
+          SETTINGS="$HOME/.config/godot/editor_settings-4.tres"
+          python3 -c "
+import os, sys
+sdk  = '$ANDROID_SDK_ROOT'
+java = '$JAVA_HOME'
+ks   = '$KS'
+out  = '[gd_resource type=\"EditorSettings\" format=3]\n\n[resource]\nexport/android/android_sdk_path = \"' + sdk + '\"\nexport/android/java_sdk_path = \"' + java + '\"\nexport/android/debug_keystore = \"' + ks + '\"\nexport/android/debug_keystore_user = \"androiddebugkey\"\nexport/android/debug_keystore_pass = \"android\"\n'
+open('$SETTINGS', 'w').write(out)
+print('=== editor settings ===')
+print(out)
+"
 
       - name: Import Project
         run: |
           mkdir -p build
-          timeout 40 godot --headless --import 2>&1 | tail -10 || true
+          timeout 40 godot --headless --import 2>&1 | tail -15 || true
 
       - name: Export APK
         run: |
