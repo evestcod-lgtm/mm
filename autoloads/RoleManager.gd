@@ -2,11 +2,11 @@ extends Node
 
 enum Role { INNOCENT, MURDERER, SHERIFF, HERO, DEAD }
 
-var roles: Dictionary = {}        # peer_id -> Role
+var roles: Dictionary = {}
 var alive: Array[int] = []
 var sheriff_id: int = -1
 var murderer_id: int = -1
-var dropped_gun_owner: int = -1   # who dropped the gun
+var dropped_gun_owner: int = -1
 
 signal role_assigned(peer_id: int, role: Role)
 signal player_eliminated(peer_id: int)
@@ -23,16 +23,13 @@ func assign_roles(peer_ids: Array) -> void:
     shuffled.shuffle()
     var count := shuffled.size()
 
-    # Assign murderer
     murderer_id = shuffled[0]
     roles[murderer_id] = Role.MURDERER
 
     if count >= 2:
-        # Assign sheriff
         sheriff_id = shuffled[1]
         roles[sheriff_id] = Role.SHERIFF
 
-    # Rest are innocent
     for i in range(2, count):
         roles[shuffled[i]] = Role.INNOCENT
 
@@ -59,7 +56,6 @@ func on_murderer_killed() -> void:
     GameManager.end_round("Innocents")
 
 func on_sheriff_killed_innocent(shooter_id: int, victim_id: int) -> void:
-    # Sheriff/Hero shot an innocent — shooter dies
     alive.erase(shooter_id)
     roles[shooter_id] = Role.DEAD
     player_eliminated.emit(shooter_id)
@@ -72,11 +68,11 @@ func on_gun_picked_up(picker_id: int) -> void:
         role_assigned.emit(picker_id, Role.HERO)
 
 func _check_win() -> void:
-    var innocents_alive := 0
-    var murderer_alive := roles.get(murderer_id, Role.DEAD) != Role.DEAD
+    var innocents_alive: int = 0
+    var murderer_alive: bool = (roles.get(murderer_id, Role.DEAD) as Role) != Role.DEAD
     for pid in alive:
-        var r := roles.get(pid, Role.DEAD)
-        if r in [Role.INNOCENT, Role.SHERIFF, Role.HERO]:
+        var r: Role = roles.get(pid, Role.DEAD) as Role
+        if r == Role.INNOCENT or r == Role.SHERIFF or r == Role.HERO:
             innocents_alive += 1
     if not murderer_alive:
         innocents_win.emit()
