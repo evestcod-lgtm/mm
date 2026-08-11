@@ -14,6 +14,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android Build Tools
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
       - name: Download Godot
         run: |
           wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
@@ -28,17 +42,24 @@ jobs:
           unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz -d /tmp/tpl
           mv /tmp/tpl/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
 
-      - name: Generate Debug Keystore
+      - name: Write Godot Editor Settings
         run: |
-          keytool -genkey -v -keystore debug.keystore \
-            -alias androiddebugkey -keyalg RSA -keysize 2048 \
-            -validity 10000 -storepass android -keypass android \
-            -dname "CN=Android Debug, O=Android, C=US"
+          mkdir -p $HOME/.config/godot
+          python3 - << 'PYEOF'
+          import os
+          sdk = os.environ.get("ANDROID_SDK_ROOT", "")
+          java = os.environ.get("JAVA_HOME", "")
+          content = '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "{}"\nexport/android/java_sdk_path = "{}"\n'.format(sdk, java)
+          path = os.path.expanduser("~/.config/godot/editor_settings-4.tres")
+          open(path, "w").write(content)
+          print("wrote:", path)
+          print(content)
+          PYEOF
 
-      - name: Import project
+      - name: Import Project
         run: |
           mkdir -p build
-          timeout 30 godot --headless --import 2>&1 || true
+          timeout 40 godot --headless --import 2>&1 | tail -10 || true
 
       - name: Export APK
         run: |
