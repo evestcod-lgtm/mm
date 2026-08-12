@@ -47,7 +47,7 @@ func _start_vote() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_start_vote() -> void:
-    var vote := load("res://scenes/ui/VoteUI.tscn").instantiate()
+    var vote: Node = load("res://scenes/ui/VoteUI.tscn").instantiate()
     get_tree().root.add_child(vote)
     queue_free()
 
