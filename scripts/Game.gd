@@ -55,8 +55,8 @@ func _assign_roles_server() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_set_role(role_int: int) -> void:
-    var my_id := multiplayer.get_unique_id()
-    var p := GameManager.player_nodes.get(my_id)
+    var my_id: int = multiplayer.get_unique_id()
+    var p: Node = GameManager.player_nodes.get(my_id)
     if p and p.has_method("set_role"):
         p.set_role(role_int as RoleManager.Role)
     if hud and hud.has_method("set_role"):
