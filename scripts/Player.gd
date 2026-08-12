@@ -12,9 +12,7 @@ var player_name: String = "Player"
 var role: RoleManager.Role = RoleManager.Role.INNOCENT
 var is_dead: bool = false
 var has_gun: bool = false
-var coins: int = 0
 
-# Touch joystick
 var joy_touch_id: int = -1
 var joy_origin: Vector2 = Vector2.ZERO
 var joy_delta: Vector2 = Vector2.ZERO
@@ -43,7 +41,6 @@ func setup(pid: int, local: bool, pname: String) -> void:
     name_lbl.text = pname
     if not local:
         camera.current = false
-        # Hide local player's camera label
     else:
         camera.current = true
         name_lbl.visible = false
@@ -64,7 +61,8 @@ func give_gun() -> void:
 
 func _set_role_color() -> void:
     var mat := StandardMaterial3D.new()
-    mat.albedo_color = ROLE_COLORS.get(role, Color(0.5, 0.5, 0.5))
+    var col: Color = ROLE_COLORS.get(role, Color(0.5, 0.5, 0.5))
+    mat.albedo_color = col
     mesh.surface_material_override[0] = mat
 
 func _ready() -> void:
@@ -77,17 +75,14 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
     if not is_local or is_dead:
         return
-    # Mouse look (desktop)
     if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
         rotate_y(-event.relative.x * MOUSE_SENS)
         head.rotate_x(-event.relative.y * MOUSE_SENS)
         head.rotation.x = clamp(head.rotation.x, -1.2, 1.2)
-    # Touch
     if event is InputEventScreenTouch:
         _handle_screen_touch(event)
     if event is InputEventScreenDrag:
         _handle_screen_drag(event)
-    # Escape mouse capture
     if event is InputEventKey and event.keycode == KEY_ESCAPE:
         if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
             Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -95,7 +90,7 @@ func _input(event: InputEvent) -> void:
             Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _handle_screen_touch(e: InputEventScreenTouch) -> void:
-    var is_left := e.position.x < get_viewport().get_visible_rect().size.x * 0.35
+    var is_left: bool = e.position.x < get_viewport().get_visible_rect().size.x * 0.35
     if e.pressed:
         if is_left and joy_touch_id < 0:
             joy_touch_id = e.index
@@ -115,7 +110,7 @@ func _handle_screen_drag(e: InputEventScreenDrag) -> void:
     if e.index == joy_touch_id:
         joy_delta = (e.position - joy_origin).limit_length(60.0)
     elif e.index == look_touch_id:
-        var d := e.position - look_prev
+        var d: Vector2 = e.position - look_prev
         look_prev = e.position
         rotate_y(-d.x * TOUCH_SENS)
         head.rotate_x(-d.y * TOUCH_SENS)
@@ -124,38 +119,29 @@ func _handle_screen_drag(e: InputEventScreenDrag) -> void:
 func _physics_process(delta: float) -> void:
     if not is_local or is_dead:
         return
-    # Gravity
     if not is_on_floor():
         velocity.y += GRAVITY * delta
     else:
         velocity.y = 0.0
-
-    # Jump
     if Input.is_action_just_pressed("jump") and is_on_floor():
         velocity.y = JUMP_VEL
         AudioManager.play("footstep")
-
-    # Move direction
     var dir := Vector3.ZERO
     if joy_touch_id >= 0:
         dir = Vector3(joy_delta.x, 0, joy_delta.y).normalized()
     else:
-        var key_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+        var key_dir: Vector2 = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
         dir = Vector3(key_dir.x, 0, key_dir.y)
-
     if dir.length() > 0.1:
-        var fwd := transform.basis * dir
+        var fwd: Vector3 = transform.basis * dir
         velocity.x = fwd.x * SPEED
         velocity.z = fwd.z * SPEED
     else:
         velocity.x = move_toward(velocity.x, 0, SPEED * 4 * delta)
         velocity.z = move_toward(velocity.z, 0, SPEED * 4 * delta)
-
     move_and_slide()
-
-    # Sync pos to all
     if Engine.get_physics_frames() % 3 == 0:
-        _rpc_sync.rpc_unreliable(global_position, rotation, head.rotation.x)
+        _rpc_sync.rpc(global_position, rotation, head.rotation.x)
 
 @rpc("any_peer", "unreliable")
 func _rpc_sync(pos: Vector3, rot: Vector3, head_x: float) -> void:
@@ -174,8 +160,6 @@ func do_action() -> void:
             _try_stab()
         RoleManager.Role.SHERIFF, RoleManager.Role.HERO:
             _try_shoot()
-        _:
-            pass
 
 func _try_stab() -> void:
     melee_col.disabled = false
@@ -188,8 +172,8 @@ func _try_shoot() -> void:
         return
     AudioManager.play("gunshot")
     var space := get_world_3d().direct_space_state
-    var from := camera.global_position
-    var to := from - camera.global_transform.basis.z * 30.0
+    var from: Vector3 = camera.global_position
+    var to: Vector3 = from - camera.global_transform.basis.z * 30.0
     var query := PhysicsRayQueryParameters3D.create(from, to, 1)
     var hit := space.intersect_ray(query)
     if hit and hit.collider is CharacterBody3D:
@@ -209,18 +193,16 @@ func _rpc_request_shoot(shooter_id: int, target_id: int) -> void:
     _server_handle_shoot(shooter_id, target_id)
 
 func _server_handle_shoot(shooter_id: int, target_id: int) -> void:
-    var target_role := RoleManager.get_role(target_id)
+    var target_role: RoleManager.Role = RoleManager.get_role(target_id)
     if target_role == RoleManager.Role.MURDERER:
-        # Great shot — murderer dies
         _rpc_die.rpc_id(target_id)
         RoleManager.on_murderer_killed()
     else:
-        # Shot an innocent — shooter dies, gun drops
         _rpc_die.rpc_id(shooter_id)
         RoleManager.on_sheriff_killed_innocent(shooter_id, target_id)
-        var snode := GameManager.player_nodes.get(shooter_id)
+        var snode: Node = GameManager.player_nodes.get(shooter_id)
         if snode:
-            var gm := get_tree().current_scene as Node3D
+            var gm: Node3D = get_tree().current_scene as Node3D
             if gm and gm.has_method("spawn_dropped_gun"):
                 gm.spawn_dropped_gun(snode.global_position + Vector3(0, 0.3, 0))
     _rpc_kill_feed.rpc(shooter_id, target_id)
@@ -235,23 +217,19 @@ func die() -> void:
     is_dead = true
     role = RoleManager.Role.DEAD
     mesh.transparency = 0.6
-    var col := mesh.get_surface_override_material(0) as StandardMaterial3D
-    if col:
-        col.albedo_color = Color(0.3, 0.3, 0.3, 0.5)
     AudioManager.play("death")
     name_lbl.text += " [DEAD]"
     if is_local:
-        # Enter spectate mode
         camera.current = false
-        var hud_root := get_tree().root.find_child("HUD", true, false)
-        if hud_root:
-            hud_root.enter_spectate()
+        var hud_node: Node = get_tree().root.find_child("HUD", true, false)
+        if hud_node and hud_node.has_method("enter_spectate"):
+            hud_node.enter_spectate()
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_kill_feed(shooter_id: int, target_id: int) -> void:
     var sname: String = NetworkManager.players.get(shooter_id, {}).get("name", "?")
     var tname: String = NetworkManager.players.get(target_id, {}).get("name", "?")
-    var hud_node := get_tree().root.find_child("HUD", true, false)
+    var hud_node: Node = get_tree().root.find_child("HUD", true, false)
     if hud_node and hud_node.has_method("add_kill"):
         hud_node.add_kill(sname + " → " + tname)
 
@@ -274,14 +252,13 @@ func _rpc_request_kill(target_id: int) -> void:
         _server_handle_kill(target_id)
 
 func _server_handle_kill(target_id: int) -> void:
-    var tr := RoleManager.get_role(target_id)
+    var tr: RoleManager.Role = RoleManager.get_role(target_id)
     if tr == RoleManager.Role.DEAD:
         return
     if tr == RoleManager.Role.SHERIFF or tr == RoleManager.Role.HERO:
-        # Drop gun when sheriff killed
-        var tnode := GameManager.player_nodes.get(target_id)
+        var tnode: Node = GameManager.player_nodes.get(target_id)
         if tnode:
-            var gm := get_tree().current_scene as Node3D
+            var gm: Node3D = get_tree().current_scene as Node3D
             if gm and gm.has_method("spawn_dropped_gun"):
                 gm.spawn_dropped_gun(tnode.global_position + Vector3(0, 0.3, 0))
     _rpc_die.rpc_id(target_id)
