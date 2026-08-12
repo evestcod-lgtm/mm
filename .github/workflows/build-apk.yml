@@ -16,21 +16,36 @@ jobs:
 
       - name: Setup export templates
         run: |
-          mkdir -p ~/.local/share/godot/export_templates
+          mkdir -p $HOME/.local/share/godot/export_templates
           mv /root/.local/share/godot/export_templates/4.2.2.stable \
-             ~/.local/share/godot/export_templates/4.2.2.stable
+             $HOME/.local/share/godot/export_templates/4.2.2.stable
 
       - name: Setup Keystore and Editor Settings
         run: |
           JAVA_PATH=$(dirname $(dirname $(readlink -f $(which java))))
-          S="/root/.config/godot/editor_settings-4.tres"
-          KS=$(find /root -name "debug.keystore" 2>/dev/null | head -1)
-          if [ -z "$KS" ]; then KS="/root/debug.keystore"; fi
+          KS=$(find / -name "debug.keystore" 2>/dev/null | head -1)
+          if [ -z "$KS" ]; then
+            KS="$HOME/debug.keystore"
+            keytool -genkey -v \
+              -keystore "$KS" \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=Android Debug, O=Android, C=US"
+          fi
+          mkdir -p $HOME/.config/godot
+          S="$HOME/.config/godot/editor_settings-4.tres"
+          echo '[gd_resource type="EditorSettings" format=3]' > $S
+          echo '' >> $S
+          echo '[resource]' >> $S
+          echo "export/android/android_sdk_path = \"/usr/lib/android-sdk\"" >> $S
           echo "export/android/debug_keystore = \"$KS\"" >> $S
           echo "export/android/debug_keystore_user = \"androiddebugkey\"" >> $S
           echo "export/android/debug_keystore_pass = \"android\"" >> $S
           echo "export/android/java_sdk_path = \"$JAVA_PATH\"" >> $S
-          echo "=== keystore at: $KS ==="
+          echo "HOME=$HOME  KS=$KS  JAVA=$JAVA_PATH"
           cat $S
 
       - name: Import Project
