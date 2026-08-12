@@ -22,21 +22,15 @@ jobs:
 
       - name: Setup Keystore and Editor Settings
         run: |
-          keytool -genkey -v \
-            -keystore /root/debug.keystore \
-            -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 \
-            -validity 10000 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=Android Debug, O=Android, C=US"
           JAVA_PATH=$(dirname $(dirname $(readlink -f $(which java))))
           S="/root/.config/godot/editor_settings-4.tres"
-          echo "export/android/debug_keystore = \"/root/debug.keystore\"" >> $S
+          KS=$(find /root -name "debug.keystore" 2>/dev/null | head -1)
+          if [ -z "$KS" ]; then KS="/root/debug.keystore"; fi
+          echo "export/android/debug_keystore = \"$KS\"" >> $S
           echo "export/android/debug_keystore_user = \"androiddebugkey\"" >> $S
           echo "export/android/debug_keystore_pass = \"android\"" >> $S
           echo "export/android/java_sdk_path = \"$JAVA_PATH\"" >> $S
-          echo "=== editor settings ==="
+          echo "=== keystore at: $KS ==="
           cat $S
 
       - name: Import Project
