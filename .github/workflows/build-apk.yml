@@ -31,13 +31,12 @@ jobs:
           echo 'export/android/debug_keystore_user = "androiddebugkey"' >> /github/home/.config/godot/editor_settings-4.tres
           echo 'export/android/debug_keystore_pass = "android"' >> /github/home/.config/godot/editor_settings-4.tres
           echo 'export/android/java_sdk_path = "/usr/lib/jvm/java-17-openjdk-amd64"' >> /github/home/.config/godot/editor_settings-4.tres
-          echo "=== settings written ==="
           cat /github/home/.config/godot/editor_settings-4.tres
 
       - name: Import Project
         run: |
           mkdir -p build
-          timeout 40 godot --headless --import 2>&1 | tail -20 || true
+          timeout 40 godot --headless --import 2>&1 || true
 
       - name: Export APK
         run: |
