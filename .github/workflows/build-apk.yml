@@ -24,15 +24,13 @@ jobs:
         run: |
           ln -sf /usr/lib/android-sdk/build-tools/33.0.2 \
                  /usr/lib/android-sdk/build-tools/34.0.0
-          echo "=== build-tools ==="
           ls /usr/lib/android-sdk/build-tools/
 
       - name: Write Editor Settings
         run: |
-          mkdir -p /root/.config/godot
-          mkdir -p /github/home/.config/godot
           for S in /root/.config/godot/editor_settings-4.tres \
                    /github/home/.config/godot/editor_settings-4.tres; do
+            mkdir -p $(dirname $S)
             echo '[gd_resource type="EditorSettings" format=3]' > $S
             echo '' >> $S
             echo '[resource]' >> $S
@@ -47,11 +45,18 @@ jobs:
       - name: Import Project
         run: |
           mkdir -p build
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          export ANDROID_HOME=/usr/lib/android-sdk
+          export ANDROID_SDK_ROOT=/usr/lib/android-sdk
           timeout 60 godot --headless --import 2>&1
         continue-on-error: true
 
       - name: Export APK
         run: |
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          export ANDROID_HOME=/usr/lib/android-sdk
+          export ANDROID_SDK_ROOT=/usr/lib/android-sdk
+          mkdir -p build
           godot --headless --export-debug "Android" build/MurderMystery.apk 2>&1
           find . -name "*.apk" || echo "no apk found"
 
