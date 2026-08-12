@@ -20,9 +20,32 @@ jobs:
           mv /root/.local/share/godot/export_templates/4.2.2.stable \
              ~/.local/share/godot/export_templates/4.2.2.stable
 
-      - name: Export APK
+      - name: Setup Keystore and Editor Settings
+        run: |
+          keytool -genkey -v \
+            -keystore /root/debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Android Debug, O=Android, C=US"
+          JAVA_PATH=$(dirname $(dirname $(readlink -f $(which java))))
+          S="/root/.config/godot/editor_settings-4.tres"
+          echo "export/android/debug_keystore = \"/root/debug.keystore\"" >> $S
+          echo "export/android/debug_keystore_user = \"androiddebugkey\"" >> $S
+          echo "export/android/debug_keystore_pass = \"android\"" >> $S
+          echo "export/android/java_sdk_path = \"$JAVA_PATH\"" >> $S
+          echo "=== editor settings ==="
+          cat $S
+
+      - name: Import Project
         run: |
           mkdir -p build
+          timeout 40 godot --headless --import 2>&1 | tail -15 || true
+
+      - name: Export APK
+        run: |
           godot --headless --export-debug "Android" build/MurderMystery.apk 2>&1
           echo "--- find apk ---"
           find . -name "*.apk" || echo "no apk found"
