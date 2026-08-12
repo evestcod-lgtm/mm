@@ -16,61 +16,28 @@ jobs:
 
       - name: Setup export templates
         run: |
-          mkdir -p $HOME/.local/share/godot/export_templates
+          mkdir -p /github/home/.local/share/godot/export_templates
           cp -r /root/.local/share/godot/export_templates/4.2.2.stable \
-                $HOME/.local/share/godot/export_templates/4.2.2.stable || true
+                /github/home/.local/share/godot/export_templates/4.2.2.stable
 
-      - name: Debug environment
+      - name: Write Editor Settings
         run: |
-          echo "=== HOME ==="
-          echo $HOME
-          echo "=== Android SDK ==="
-          find / -name "adb" -type f 2>/dev/null || echo "adb not found"
-          echo "=== Build tools ==="
-          ls /usr/lib/android-sdk/build-tools/ 2>/dev/null || echo "not at /usr/lib"
-          find / -name "build-tools" -type d 2>/dev/null | head -3
-          echo "=== Templates ==="
-          ls $HOME/.local/share/godot/export_templates/ 2>/dev/null || echo "no templates"
-          ls $HOME/.local/share/godot/export_templates/4.2.2.stable/ 2>/dev/null | grep android | head -5
-          echo "=== Keystore ==="
-          find / -name "debug.keystore" 2>/dev/null
-          echo "=== Java ==="
-          which java && java -version
-          readlink -f $(which java)
-          echo "=== Editor settings ==="
-          cat $HOME/.config/godot/editor_settings-4.tres 2>/dev/null || echo "no settings file"
-
-      - name: Setup Keystore and Editor Settings
-        run: |
-          JAVA_PATH=$(dirname $(dirname $(readlink -f $(which java))))
-          ANDROID_SDK=$(find / -name "adb" -type f 2>/dev/null | head -1 | xargs -I{} dirname {} | xargs -I{} dirname {} 2>/dev/null)
-          if [ -z "$ANDROID_SDK" ]; then ANDROID_SDK="/usr/lib/android-sdk"; fi
-          KS=$(find / -name "debug.keystore" 2>/dev/null | head -1)
-          if [ -z "$KS" ]; then
-            KS="$HOME/debug.keystore"
-            keytool -genkey -v \
-              -keystore "$KS" -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass android -keypass android \
-              -dname "CN=Android Debug, O=Android, C=US"
-          fi
-          mkdir -p $HOME/.config/godot
-          S="$HOME/.config/godot/editor_settings-4.tres"
-          echo '[gd_resource type="EditorSettings" format=3]' > $S
-          echo '' >> $S
-          echo '[resource]' >> $S
-          echo "export/android/android_sdk_path = \"$ANDROID_SDK\"" >> $S
-          echo "export/android/debug_keystore = \"$KS\"" >> $S
-          echo "export/android/debug_keystore_user = \"androiddebugkey\"" >> $S
-          echo "export/android/debug_keystore_pass = \"android\"" >> $S
-          echo "export/android/java_sdk_path = \"$JAVA_PATH\"" >> $S
-          echo "=== written settings ==="
-          cat $S
+          mkdir -p /github/home/.config/godot
+          echo '[gd_resource type="EditorSettings" format=3]' > /github/home/.config/godot/editor_settings-4.tres
+          echo '' >> /github/home/.config/godot/editor_settings-4.tres
+          echo '[resource]' >> /github/home/.config/godot/editor_settings-4.tres
+          echo 'export/android/android_sdk_path = "/usr/lib/android-sdk"' >> /github/home/.config/godot/editor_settings-4.tres
+          echo 'export/android/debug_keystore = "/root/debug.keystore"' >> /github/home/.config/godot/editor_settings-4.tres
+          echo 'export/android/debug_keystore_user = "androiddebugkey"' >> /github/home/.config/godot/editor_settings-4.tres
+          echo 'export/android/debug_keystore_pass = "android"' >> /github/home/.config/godot/editor_settings-4.tres
+          echo 'export/android/java_sdk_path = "/usr/lib/jvm/java-17-openjdk-amd64"' >> /github/home/.config/godot/editor_settings-4.tres
+          echo "=== settings written ==="
+          cat /github/home/.config/godot/editor_settings-4.tres
 
       - name: Import Project
         run: |
           mkdir -p build
-          timeout 40 godot --headless --import 2>&1 || true
+          timeout 40 godot --headless --import 2>&1 | tail -20 || true
 
       - name: Export APK
         run: |
